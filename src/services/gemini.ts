@@ -1,6 +1,6 @@
-import { DesignFormData, DesignSuggestion, FengShuiResult } from '../types';
 
-const callAPI = async (prompt: string) => {
+
+const callAPI = async (prompt) => {
   const res = await fetch("/api/gemini", {
     method: "POST",
     headers: {
