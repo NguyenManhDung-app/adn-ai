@@ -1,11 +1,11 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { DesignFormData, DesignSuggestion, FengShuiResult } from '../types';
 
-// ✅ FIX: dùng đúng env của Vite + fallback rõ ràng
+// ✅ ENV chuẩn Vite
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
 if (!apiKey) {
-  throw new Error("❌ Missing VITE_GEMINI_API_KEY. Check Vercel Environment Variables.");
+  throw new Error("❌ Missing VITE_GEMINI_API_KEY");
 }
 
 const ai = new GoogleGenAI({ apiKey });
@@ -22,17 +22,7 @@ const parseDataUrl = (dataUrl: string) => {
 };
 
 export const generateArchitecturalDesigns = async (data: DesignFormData): Promise<DesignSuggestion[]> => {
-  const prompt = `Bạn là một Kiến trúc sư trưởng giàu kinh nghiệm tại Việt Nam. 
-Khách hàng có nhu cầu thiết kế một công trình với các thông tin sau:
-- Loại hình: ${data.houseType || 'Chưa xác định'}
-- Kích thước khu đất: Rộng ${data.width || '?'}m x Dài ${data.length || '?'}m
-- Số tầng: ${data.floors || '?'}
-- Phong cách mong muốn: ${data.style || 'Hiện đại'}
-- Ngân sách dự kiến: ${data.budget || 'Chưa xác định'}
-
-Hãy phân tích chuyên sâu và đưa ra 3 phương án thiết kế kiến trúc mặt tiền khác nhau...
-
-Trả về JSON gồm 3 object: title, description, budgetBadge.`;
+  const prompt = `Bạn là một Kiến trúc sư trưởng giàu kinh nghiệm tại Việt Nam...`;
 
   const contents: any[] = [{ text: prompt }];
 
@@ -47,27 +37,12 @@ Trả về JSON gồm 3 object: title, description, budgetBadge.`;
 
   try {
     const response = await ai.models.generateContent({
-      // ✅ FIX: model ổn định hơn
-      model: "gemini-1.5-flash",
-      contents,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING },
-              description: { type: Type.STRING },
-              budgetBadge: { type: Type.STRING }
-            },
-            required: ["title", "description", "budgetBadge"]
-          }
-        }
-      }
+      model: "gemini-2.0-flash",
+      contents
     });
 
-    const result = JSON.parse(response.text || "[]");
+    const text = response.text || "[]";
+    const result = JSON.parse(text);
 
     return result.map((item: any, index: number) => ({
       id: `opt-${index + 1}`,
@@ -79,7 +54,7 @@ Trả về JSON gồm 3 object: title, description, budgetBadge.`;
 
   } catch (error) {
     console.error("❌ Gemini error:", error);
-    throw new Error("Không thể tạo phương án thiết kế lúc này.");
+    throw new Error("Không thể tạo phương án thiết kế.");
   }
 };
 
@@ -90,23 +65,8 @@ export const analyzeFengShui = async (data: DesignFormData): Promise<FengShuiRes
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            direction: { type: Type.STRING },
-            elements: { type: Type.STRING },
-            advice: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            }
-          },
-          required: ["direction", "elements", "advice"]
-        }
-      }
+      model: "gemini-2.0-flash",
+      contents: prompt
     });
 
     return JSON.parse(response.text || "{}");
@@ -122,27 +82,15 @@ export const editDesign = async (designId: string, prompt: string): Promise<Desi
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: systemPrompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            description: { type: Type.STRING },
-            budgetBadge: { type: Type.STRING }
-          },
-          required: ["title", "description", "budgetBadge"]
-        }
-      }
+      model: "gemini-2.0-flash",
+      contents: systemPrompt
     });
 
     const result = JSON.parse(response.text || "{}");
 
     return {
       id: designId,
-      imageUrl: `https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?...${Date.now()}`,
+      imageUrl: `https://images.unsplash.com/photo-1600566753190-17f0baa2a6c25118c?...${Date.now()}`,
       title: result.title || "Phương án đã tinh chỉnh",
       description: result.description || "Đã cập nhật",
       budgetBadge: result.budgetBadge || "Đã cập nhật",
