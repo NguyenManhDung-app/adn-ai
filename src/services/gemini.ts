@@ -122,7 +122,7 @@ export const editDesign = async (designId: string, prompt: string): Promise<Desi
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-pro",
+      model: "gemini-1.5-flash",
       contents: systemPrompt,
       config: {
         responseMimeType: "application/json",
