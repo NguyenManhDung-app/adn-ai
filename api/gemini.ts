@@ -1,14 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
 import { DesignFormData, DesignSuggestion, FengShuiResult } from '../types';
-
-// ✅ ENV chuẩn Vite
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-if (!apiKey) {
-  throw new Error("❌ Missing VITE_GEMINI_API_KEY");
-}
-
-const ai = new GoogleGenAI({ apiKey });
 
 // Helper giữ nguyên
 const parseDataUrl = (dataUrl: string) => {
@@ -21,28 +11,29 @@ const parseDataUrl = (dataUrl: string) => {
   };
 };
 
+// 🧠 GỌI BACKEND (KHÔNG gọi Gemini trực tiếp nữa)
+const callAPI = async (prompt: string) => {
+  const response = await fetch("/api/gemini", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ prompt }),
+  });
+
+  const data = await response.json();
+
+  const text =
+    data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+
+  return JSON.parse(text);
+};
+
 export const generateArchitecturalDesigns = async (data: DesignFormData): Promise<DesignSuggestion[]> => {
   const prompt = `Bạn là một Kiến trúc sư trưởng giàu kinh nghiệm tại Việt Nam...`;
 
-  const contents: any[] = [{ text: prompt }];
-
-  if (data.image) {
-    const parsedImage = parseDataUrl(data.image);
-    if (parsedImage) {
-      contents.unshift({
-        inlineData: parsedImage
-      });
-    }
-  }
-
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents
-    });
-
-    const text = response.text || "[]";
-    const result = JSON.parse(text);
+    const result = await callAPI(prompt);
 
     return result.map((item: any, index: number) => ({
       id: `opt-${index + 1}`,
@@ -53,7 +44,7 @@ export const generateArchitecturalDesigns = async (data: DesignFormData): Promis
     }));
 
   } catch (error) {
-    console.error("❌ Gemini error:", error);
+    console.error("❌ Error:", error);
     throw new Error("Không thể tạo phương án thiết kế.");
   }
 };
@@ -64,15 +55,10 @@ export const analyzeFengShui = async (data: DesignFormData): Promise<FengShuiRes
   const prompt = `Bạn là chuyên gia phong thủy...`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: prompt
-    });
-
-    return JSON.parse(response.text || "{}");
+    return await callAPI(prompt);
 
   } catch (error) {
-    console.error("❌ FengShui error:", error);
+    console.error("❌ Error:", error);
     throw new Error("Không thể phân tích phong thủy.");
   }
 };
@@ -81,23 +67,18 @@ export const editDesign = async (designId: string, prompt: string): Promise<Desi
   const systemPrompt = `Bạn là một Kiến trúc sư...`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: systemPrompt
-    });
-
-    const result = JSON.parse(response.text || "{}");
+    const result = await callAPI(systemPrompt);
 
     return {
       id: designId,
-      imageUrl: `https://images.unsplash.com/photo-1600566753190-17f0baa2a6c25118c?...${Date.now()}`,
+      imageUrl: `https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?...${Date.now()}`,
       title: result.title || "Phương án đã tinh chỉnh",
       description: result.description || "Đã cập nhật",
       budgetBadge: result.budgetBadge || "Đã cập nhật",
     };
 
   } catch (error) {
-    console.error("❌ Edit error:", error);
+    console.error("❌ Error:", error);
     throw new Error("Không thể chỉnh sửa phương án.");
   }
 };
