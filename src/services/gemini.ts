@@ -48,7 +48,7 @@ Trả về JSON gồm 3 object: title, description, budgetBadge.`;
   try {
     const response = await ai.models.generateContent({
       // ✅ FIX: model ổn định hơn
-      model: "gemini-1.5-pro",
+      model: "gemini-1.5-flash",
       contents,
       config: {
         responseMimeType: "application/json",
