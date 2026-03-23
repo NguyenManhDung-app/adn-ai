@@ -1,105 +1,55 @@
-import { GoogleGenAI } from "@google/genai";
 import { DesignFormData, DesignSuggestion, FengShuiResult } from '../types';
 
-// ✅ ENV chuẩn Vite
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+const callAPI = async (prompt: string) => {
+  const response = await fetch("/api/gemini", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ prompt }),
+  });
 
-if (!apiKey) {
-  throw new Error("❌ Missing VITE_GEMINI_API_KEY");
-}
+  const data = await response.json();
 
-const ai = new GoogleGenAI({ apiKey });
+  const text =
+    data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-// Helper giữ nguyên
-const parseDataUrl = (dataUrl: string) => {
-  const matches = dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-  if (!matches || matches.length !== 3) return null;
+  if (!text) {
+    throw new Error("API không trả về dữ liệu");
+  }
 
-  return {
-    mimeType: matches[1],
-    data: matches[2]
-  };
+  return JSON.parse(text);
 };
 
 export const generateArchitecturalDesigns = async (data: DesignFormData): Promise<DesignSuggestion[]> => {
   const prompt = `Bạn là một Kiến trúc sư trưởng giàu kinh nghiệm tại Việt Nam...`;
 
-  const contents: any[] = [{ text: prompt }];
+  const result = await callAPI(prompt);
 
-  if (data.image) {
-    const parsedImage = parseDataUrl(data.image);
-    if (parsedImage) {
-      contents.unshift({
-        inlineData: parsedImage
-      });
-    }
-  }
-
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents
-    });
-
-    const text = response.text || "[]";
-    const result = JSON.parse(text);
-
-    return result.map((item: any, index: number) => ({
-      id: `opt-${index + 1}`,
-      imageUrl: getPlaceholderImage(data.style, index),
-      title: item.title,
-      description: item.description,
-      budgetBadge: item.budgetBadge,
-    }));
-
-  } catch (error) {
-    console.error("❌ Gemini error:", error);
-    throw new Error("Không thể tạo phương án thiết kế.");
-  }
+  return result.map((item: any, index: number) => ({
+    id: `opt-${index + 1}`,
+    imageUrl: getPlaceholderImage(data.style, index),
+    title: item.title,
+    description: item.description,
+    budgetBadge: item.budgetBadge,
+  }));
 };
 
 export const analyzeFengShui = async (data: DesignFormData): Promise<FengShuiResult> => {
-  const year = data.birthDate ? new Date(data.birthDate).getFullYear() : 1990;
-
   const prompt = `Bạn là chuyên gia phong thủy...`;
-
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: prompt
-    });
-
-    return JSON.parse(response.text || "{}");
-
-  } catch (error) {
-    console.error("❌ FengShui error:", error);
-    throw new Error("Không thể phân tích phong thủy.");
-  }
+  return await callAPI(prompt);
 };
 
 export const editDesign = async (designId: string, prompt: string): Promise<DesignSuggestion> => {
-  const systemPrompt = `Bạn là một Kiến trúc sư...`;
+  const result = await callAPI(prompt);
 
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: systemPrompt
-    });
-
-    const result = JSON.parse(response.text || "{}");
-
-    return {
-      id: designId,
-      imageUrl: `https://images.unsplash.com/photo-1600566753190-17f0baa2a6c25118c?...${Date.now()}`,
-      title: result.title || "Phương án đã tinh chỉnh",
-      description: result.description || "Đã cập nhật",
-      budgetBadge: result.budgetBadge || "Đã cập nhật",
-    };
-
-  } catch (error) {
-    console.error("❌ Edit error:", error);
-    throw new Error("Không thể chỉnh sửa phương án.");
-  }
+  return {
+    id: designId,
+    imageUrl: `https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?...${Date.now()}`,
+    title: result.title || "Phương án đã tinh chỉnh",
+    description: result.description || "Đã cập nhật",
+    budgetBadge: result.budgetBadge || "Đã cập nhật",
+  };
 };
 
 const getPlaceholderImage = (style: string, index: number) => {
