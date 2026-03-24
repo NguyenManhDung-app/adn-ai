@@ -6,6 +6,10 @@ export default async function handler(req: any, res: any) {
 
     const { prompt } = req.body;
 
+    if (!prompt) {
+      return res.status(400).json({ error: "Missing prompt" });
+    }
+
     const API_KEY = process.env.GEMINI_API_KEY;
 
     if (!API_KEY) {
@@ -13,14 +17,18 @@ export default async function handler(req: any, res: any) {
     }
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
+          contents: [
+            {
+              parts: [{ text: prompt }],
+            },
+          ],
         }),
       }
     );
@@ -28,7 +36,7 @@ export default async function handler(req: any, res: any) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("Gemini error:", data);
+      console.error("❌ Gemini error:", data);
       return res.status(500).json(data);
     }
 
@@ -37,10 +45,10 @@ export default async function handler(req: any, res: any) {
 
     return res.status(200).json({ text });
   } catch (error: any) {
-    console.error("🔥 ERROR:", error);
+    console.error("🔥 SERVER ERROR:", error);
 
     return res.status(500).json({
-      error: error.message,
+      error: error.message || "Unknown error",
     });
   }
 }
